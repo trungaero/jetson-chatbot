@@ -28,8 +28,8 @@ WHISPER_BEAM_SIZE = 5
 # ==============================================================================
 # Text-to-Speech (Piper)
 # ==============================================================================
-PIPER_EXECUTABLE = "/home/jetson/piper/piper"
-PIPER_MODEL = "/home/jetson/piper/models/en_US-lessac-medium.onnx"
+PIPER_EXECUTABLE = "./piper/piper"
+PIPER_MODEL = "./piper/models/en_US-lessac-medium.onnx"
 PIPER_OUTPUT_DIR = "/tmp"
 
 # ==============================================================================
