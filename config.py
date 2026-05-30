@@ -41,11 +41,6 @@ AUDIO_FORMAT_WIDTH = 2          # 16-bit (2 bytes per sample)
 AUDIO_CHUNK_SIZE = 1024         # Frames per buffer
 
 # ==============================================================================
-# Push-to-Talk
-# ==============================================================================
-PTT_KEY = "space"               # Key to hold for recording
-
-# ==============================================================================
 # Conversation
 # ==============================================================================
 MAX_CONVERSATION_HISTORY = 10   # Max number of message pairs to keep in context

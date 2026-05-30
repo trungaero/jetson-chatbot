@@ -56,9 +56,8 @@ def main():
     print()
 
     print("─" * 60)
-    print("Ready! Hold [SPACE] to speak, release to send.")
-    print("Type 'q' + Enter or press Ctrl+C to quit.")
-    print("Type 'r' + Enter to reset conversation history.")
+    print("Ready! Press [ENTER] to start recording, [ENTER] again to stop.")
+    print("Press Ctrl+C to quit.")
     print("─" * 60)
 
     # ── Graceful shutdown ────────────────────────────────────────────────────

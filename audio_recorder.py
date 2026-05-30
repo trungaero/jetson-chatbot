@@ -1,96 +1,80 @@
 """
 Audio Recorder module — Push-to-Talk recording via PyAudio.
-Hold the configured key to record, release to stop.
+Press Enter to start recording, press Enter again to stop.
+Works on headless Linux (no X server required).
 """
 
 import io
+import sys
 import wave
 import threading
 import numpy as np
 import pyaudio
-from pynput import keyboard
 
 import config
 
 
 class AudioRecorder:
-    """Records audio while the push-to-talk key is held down."""
+    """Records audio with Enter-key start/stop (works without X11)."""
 
     def __init__(self):
         self.sample_rate = config.AUDIO_SAMPLE_RATE
         self.channels = config.AUDIO_CHANNELS
         self.chunk_size = config.AUDIO_CHUNK_SIZE
         self.format = pyaudio.paInt16
-        self.ptt_key = config.PTT_KEY
 
         self._audio = pyaudio.PyAudio()
         self._stream = None
         self._frames: list[bytes] = []
         self._recording = False
-        self._done_event = threading.Event()
+        self._stop_event = threading.Event()
 
-    def _get_ptt_key(self):
-        """Map config key string to pynput Key object."""
-        key_map = {
-            "space": keyboard.Key.space,
-            "ctrl": keyboard.Key.ctrl_l,
-            "shift": keyboard.Key.shift,
-            "alt": keyboard.Key.alt_l,
-        }
-        return key_map.get(self.ptt_key, keyboard.Key.space)
+    def _wait_for_enter(self):
+        """Wait for Enter key press in a background thread."""
+        sys.stdin.readline()
+        self._stop_event.set()
 
     def record(self) -> np.ndarray:
         """
-        Block until push-to-talk cycle completes.
+        Block until recording cycle completes.
+        Press Enter to start, press Enter again to stop.
         Returns recorded audio as a numpy float32 array normalized to [-1, 1].
         """
         self._frames = []
-        self._done_event.clear()
-        target_key = self._get_ptt_key()
+        self._stop_event.clear()
+        self._recording = False
 
-        print(f"\n🎤 Hold [{self.ptt_key.upper()}] to speak...")
+        print("\n🎤 Press [ENTER] to start recording...")
+        sys.stdin.readline()  # Wait for first Enter
 
-        def on_press(key):
-            if key == target_key and not self._recording:
-                self._recording = True
-                print("   ● Recording... (release to stop)")
+        # Start recording
+        self._recording = True
+        print("   ● Recording... Press [ENTER] to stop.")
 
-        def on_release(key):
-            if key == target_key and self._recording:
-                self._recording = False
-                self._done_event.set()
-                return False  # Stop listener
-
-        # Start keyboard listener
-        listener = keyboard.Listener(on_press=on_press, on_release=on_release)
-        listener.start()
-
-        # Wait for key press to start recording
-        while not self._recording and not self._done_event.is_set():
-            self._done_event.wait(timeout=0.05)
+        # Start a thread waiting for the stop signal
+        stop_thread = threading.Thread(target=self._wait_for_enter, daemon=True)
+        stop_thread.start()
 
         # Open audio stream and record
-        if self._recording:
-            self._stream = self._audio.open(
-                format=self.format,
-                channels=self.channels,
-                rate=self.sample_rate,
-                input=True,
-                frames_per_buffer=self.chunk_size,
-            )
+        self._stream = self._audio.open(
+            format=self.format,
+            channels=self.channels,
+            rate=self.sample_rate,
+            input=True,
+            frames_per_buffer=self.chunk_size,
+        )
 
-            while self._recording:
-                try:
-                    data = self._stream.read(self.chunk_size, exception_on_overflow=False)
-                    self._frames.append(data)
-                except OSError:
-                    break
+        while not self._stop_event.is_set():
+            try:
+                data = self._stream.read(self.chunk_size, exception_on_overflow=False)
+                self._frames.append(data)
+            except OSError:
+                break
 
-            self._stream.stop_stream()
-            self._stream.close()
-            self._stream = None
-
-        listener.join(timeout=1.0)
+        self._recording = False
+        self._stream.stop_stream()
+        self._stream.close()
+        self._stream = None
 
         if not self._frames:
             return np.array([], dtype=np.float32)
@@ -98,7 +82,7 @@ class AudioRecorder:
         # Convert raw bytes to numpy float32 array
         audio_data = np.frombuffer(b"".join(self._frames), dtype=np.int16)
         audio_float = audio_data.astype(np.float32) / 32768.0
-        
+
         duration = len(audio_float) / self.sample_rate
         print(f"   ✓ Recorded {duration:.1f}s of audio")
 
