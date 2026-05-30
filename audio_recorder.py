@@ -24,10 +24,26 @@ class AudioRecorder:
         self.format = pyaudio.paInt16
 
         self._audio = pyaudio.PyAudio()
+        self._device_index = self._find_device()
         self._stream = None
         self._frames: list[bytes] = []
         self._recording = False
         self._stop_event = threading.Event()
+
+    def _find_device(self) -> int | None:
+        """Find the input device index matching config, or use default."""
+        if config.AUDIO_DEVICE_INDEX is not None:
+            return config.AUDIO_DEVICE_INDEX
+
+        # Auto-detect Jabra or specified card
+        for i in range(self._audio.get_device_count()):
+            info = self._audio.get_device_info_by_index(i)
+            if info["maxInputChannels"] > 0 and "jabra" in info["name"].lower():
+                print(f"   Found input device: [{i}] {info['name']}")
+                return i
+
+        # Fallback to default
+        return None
 
     def _wait_for_enter(self):
         """Wait for Enter key press in a background thread."""
@@ -56,13 +72,17 @@ class AudioRecorder:
         stop_thread.start()
 
         # Open audio stream and record
-        self._stream = self._audio.open(
+        stream_kwargs = dict(
             format=self.format,
             channels=self.channels,
             rate=self.sample_rate,
             input=True,
             frames_per_buffer=self.chunk_size,
         )
+        if self._device_index is not None:
+            stream_kwargs["input_device_index"] = self._device_index
+
+        self._stream = self._audio.open(**stream_kwargs)
 
         while not self._stop_event.is_set():
             try:

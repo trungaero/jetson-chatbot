@@ -33,6 +33,14 @@ PIPER_MODEL = "/home/jetson/piper/models/en_US-lessac-medium.onnx"
 PIPER_OUTPUT_DIR = "/tmp"
 
 # ==============================================================================
+# Audio Device (Jabra Link 380 — card 2, device 0)
+# ==============================================================================
+AUDIO_DEVICE_INDEX = None       # PyAudio device index (None = default/auto-detect)
+AUDIO_CARD = 2                  # ALSA card number
+AUDIO_DEVICE = 0                # ALSA device number
+AUDIO_ALSA_DEVICE = "plughw:2,0"  # ALSA device string for aplay (plughw handles format conversion)
+
+# ==============================================================================
 # Audio Recording
 # ==============================================================================
 AUDIO_SAMPLE_RATE = 16000       # 16kHz required by Whisper

@@ -41,10 +41,11 @@ class AudioPlayer:
             self._play_pyaudio(wav_path)
 
     def _play_aplay(self, wav_path: str):
-        """Play using aplay (ALSA, Linux)."""
+        """Play using aplay (ALSA, Linux) on configured device."""
+        import config
         try:
             subprocess.run(
-                ["aplay", "-q", wav_path],
+                ["aplay", "-D", config.AUDIO_ALSA_DEVICE, "-q", wav_path],
                 check=True,
                 timeout=60,
             )
