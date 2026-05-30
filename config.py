@@ -3,6 +3,8 @@ Configuration for the Jetson Orin Nano Voice Chatbot.
 All tunable parameters are defined here.
 """
 
+import os as _os
+
 # ==============================================================================
 # LLM Server (llama.cpp)
 # ==============================================================================
@@ -10,11 +12,18 @@ LLAMA_SERVER_URL = "http://localhost:8080"
 LLAMA_MODEL = "qwen3-1.7b"  # for logging purposes
 LLAMA_MAX_TOKENS = 256
 LLAMA_TEMPERATURE = 0.7
-LLAMA_SYSTEM_PROMPT = (
-    "You are a helpful voice assistant running on a Jetson Orin Nano. "
-    "Keep your responses concise, conversational, and under 3 sentences "
-    "unless the user asks for more detail."
-)
+
+# Load system prompt from file; fall back to default if file is missing
+_SYSTEM_PROMPT_FILE = _os.path.join(_os.path.dirname(__file__), "system_prompt.txt")
+if _os.path.isfile(_SYSTEM_PROMPT_FILE):
+    with open(_SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as _f:
+        LLAMA_SYSTEM_PROMPT = _f.read().strip()
+else:
+    LLAMA_SYSTEM_PROMPT = (
+        "You are a helpful voice assistant running on a Jetson Orin Nano. "
+        "Keep your responses concise, conversational, and under 3 sentences "
+        "unless the user asks for more detail."
+    )
 
 # ==============================================================================
 # Speech-to-Text (faster-whisper)
