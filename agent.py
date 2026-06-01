@@ -10,11 +10,20 @@ Architecture:
 
 import re
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langgraph.prebuilt import create_react_agent
 
 import config
 from tools import get_tools
+
+
+REMINDER_SYSTEM_PROMPT = (
+    "You are a reminder assistant. Your only job is to notify the user that "
+    "a previously scheduled reminder has arrived. "
+    "Speak in a natural, friendly, direct tone — one or two sentences maximum. "
+    "Do not ask follow-up questions. Do not use markdown, bullet points, or lists. "
+    "Example: 'Hey, just a heads-up — it\'s time to take your medication.'"
+)
 
 
 def strip_reasoning(text: str) -> str:
@@ -119,3 +128,46 @@ class ChatAgent:
         """Clear conversation history."""
         self._history = []
         print("   🔄 Conversation history cleared.")
+
+
+class ReminderAgent:
+    """
+    Lightweight agent with no tools, dedicated to announcing reminders.
+    Uses a fixed system prompt tuned for short, natural reminder announcements.
+    No conversation history is maintained.
+    """
+
+    def __init__(self):
+        print("Initializing ReminderAgent...")
+        self._llm = ChatOpenAI(
+            base_url=f"{config.LLAMA_SERVER_URL}/v1",
+            api_key="not-needed",
+            model=config.LLAMA_MODEL,
+            max_tokens=80,              # Reminders should be very short
+            temperature=0.5,
+        )
+        print("✓ ReminderAgent ready.")
+
+    def announce(self, task: str) -> str:
+        """
+        Generate a spoken reminder announcement for the given task.
+
+        Args:
+            task: The task description extracted from the reminder trigger.
+
+        Returns:
+            A short, natural-language reminder string ready for TTS.
+        """
+        messages = [
+            {"role": "system", "content": REMINDER_SYSTEM_PROMPT},
+            {"role": "user",   "content": f"Remind the user about: {task}"},
+        ]
+        try:
+            response = self._llm.invoke(messages)
+            text = strip_reasoning(response.content.strip())
+            print(f"   🔔 Reminder announcement: \"{text}\"")
+            return text
+        except Exception as e:
+            print(f"   ✗ ReminderAgent error: {e}")
+            # Safe fallback — always produce something audible
+            return f"Reminder: {task}"

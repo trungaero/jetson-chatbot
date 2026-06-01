@@ -18,7 +18,7 @@ import queue
 
 from audio_recorder import AudioRecorder
 from stt import SpeechToText
-from agent import ChatAgent
+from agent import ChatAgent, ReminderAgent
 from tts import TextToSpeech
 from audio_player import AudioPlayer
 from reminder_scheduler import ReminderScheduler
@@ -47,6 +47,9 @@ def main():
 
     print("[2/4] Initializing ReAct Agent...")
     agent = ChatAgent()
+    print()
+
+    reminder_agent = ReminderAgent()
     print()
 
     print("[2b]  Starting reminder scheduler...")
@@ -91,13 +94,22 @@ def main():
             kind, text = input_queue.get()
 
             if kind == "reminder":
-                print(f"\n   🔔 Reminder triggered: processing...")
-            else:
-                print(f"   🗣 User: \"{text}\"")
+                # Extract task name from the trigger string
+                task = text.replace("[REMINDER] Please remind the user about: ", "").strip()
+                print(f"\n   🔔 Reminder triggered: {task}")
+                tts_text = reminder_agent.announce(task)
+                if tts_text:
+                    print("   ⏳ Synthesizing reminder speech...")
+                    wav_path = tts.synthesize(tts_text)
+                    if wav_path:
+                        player.play(wav_path)
+                        tts.cleanup_file(wav_path)
+                continue
 
-            # Agent handles both user input and reminder triggers identically
+            # Normal user input → full ReAct agent
+            print(f"   🗣 User: \"{text}\"")
             print("   ⏳ Agent thinking...")
-            tts_text, full_text = agent.chat("You should remind the user about: " + text + ".It's time now!")
+            tts_text, full_text = agent.chat(text)
             if not tts_text:
                 continue
 
