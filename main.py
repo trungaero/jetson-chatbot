@@ -14,12 +14,14 @@ Usage:
 
 import sys
 import signal
+import queue
 
 from audio_recorder import AudioRecorder
 from stt import SpeechToText
 from agent import ChatAgent
 from tts import TextToSpeech
 from audio_player import AudioPlayer
+from reminder_scheduler import ReminderScheduler, reminder_queue
 
 
 def print_banner():
@@ -27,7 +29,7 @@ def print_banner():
     print("=" * 60)
     print("  🤖 Jetson Orin Nano Voice Chatbot")
     print("  Model: Gemma 4 E2B via llama.cpp")
-    print("  Agent: LangGraph ReAct + DuckDuckGo search")
+    print("  Agent: LangGraph ReAct + search + reminders")
     print("  STT:   faster-whisper")
     print("  TTS:   Piper")
     print("=" * 60)
@@ -44,6 +46,11 @@ def main():
 
     print("[2/4] Initializing ReAct Agent...")
     agent = ChatAgent()
+    print()
+
+    print("[2b]  Starting reminder scheduler...")
+    scheduler = ReminderScheduler()
+    scheduler.start()
     print()
 
     print("[3/4] Initializing Text-to-Speech...")
@@ -64,6 +71,7 @@ def main():
     # ── Graceful shutdown ────────────────────────────────────────────────────
     def shutdown(signum=None, frame=None):
         print("\n\nShutting down...")
+        scheduler.stop()
         recorder.cleanup()
         player.cleanup()
         sys.exit(0)
@@ -75,6 +83,21 @@ def main():
     turn = 0
     while True:
         try:
+            # ── Check for fired reminders before waiting for user input ──────
+            try:
+                trigger = reminder_queue.get_nowait()
+                print(f"\n   🔔 Processing reminder...")
+                tts_text, _ = agent.chat(trigger)
+                if tts_text:
+                    print("   ⏳ Synthesizing reminder speech...")
+                    wav_path = tts.synthesize(tts_text)
+                    if wav_path:
+                        player.play(wav_path)
+                        tts.cleanup_file(wav_path)
+                continue
+            except queue.Empty:
+                pass  # No reminder due, proceed to normal recording
+
             turn += 1
 
             # Step 1: Record audio (push-to-talk)
