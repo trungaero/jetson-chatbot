@@ -50,6 +50,7 @@ def set_reminder(task: str, when: str) -> str:
     Returns:
         Confirmation message with the reminder ID and scheduled time.
     """
+    print("   ⏳ Parsing reminder time...")
     due = dateparser.parse(
         when,
         settings={"PREFER_DATES_FROM": "future", "RETURN_AS_TIMEZONE_AWARE": False},
@@ -63,6 +64,7 @@ def set_reminder(task: str, when: str) -> str:
         return f"The time '{when}' appears to be in the past. Please specify a future time."
 
     reminder_id = reminder_scheduler.add_reminder(task, due)
+    print(f"   ✓ Reminder set! ID: {reminder_id}. Scheduled for {due.strftime('%A, %B %d at %H:%M')}.")
     return (
         f"Reminder set! ID: {reminder_id}. "
         f"I will remind you about '{task}' at {due.strftime('%A, %B %d at %H:%M')}."
@@ -76,6 +78,7 @@ def list_reminders_tool() -> str:
     Returns:
         A formatted list of pending reminders, or a message if none exist.
     """
+    print("   ⏳ Fetching pending reminders...")
     pending = reminder_scheduler.list_reminders()
     if not pending:
         return "You have no pending reminders."
@@ -98,8 +101,10 @@ def cancel_reminder_tool(reminder_id: str) -> str:
     Returns:
         Confirmation of cancellation, or an error if not found.
     """
+    print(f"   ⏳ Attempting to cancel reminder ID {reminder_id}...")
     success = reminder_scheduler.cancel_reminder(reminder_id)
     if success:
+        print(f"   ✓ Reminder {reminder_id} has been cancelled.")
         return f"Reminder {reminder_id} has been cancelled."
     return (
         f"No reminder found with ID '{reminder_id}'. "
