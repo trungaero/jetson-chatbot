@@ -2,3 +2,7 @@ faster-whisper
 pyaudio
 requests
 numpy
+langchain-openai
+langchain-community
+langgraph
+duckduckgo-search

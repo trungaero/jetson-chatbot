@@ -3,9 +3,9 @@ Jetson Orin Nano Voice Chatbot — Main Entry Point
 
 Pipeline:
   1. Push-to-talk audio recording
-  2. Speech-to-text via faster-whisper (GPU)
-  3. LLM inference via llama.cpp server (Qwen3:1.7B)
-  4. Text-to-speech via Piper TTS
+  2. Speech-to-text via faster-whisper
+  3. LangGraph ReAct agent (Gemma 4 E2B) with tool calling
+  4. Text-to-speech via Piper TTS  (reasoning stripped)
   5. Audio playback
 
 Usage:
@@ -17,7 +17,7 @@ import signal
 
 from audio_recorder import AudioRecorder
 from stt import SpeechToText
-from llm_client import LLMClient
+from agent import ChatAgent
 from tts import TextToSpeech
 from audio_player import AudioPlayer
 
@@ -26,8 +26,9 @@ def print_banner():
     """Print startup banner."""
     print("=" * 60)
     print("  🤖 Jetson Orin Nano Voice Chatbot")
-    print("  Model: Qwen3:1.7B via llama.cpp")
-    print("  STT:   faster-whisper (GPU)")
+    print("  Model: Gemma 4 E2B via llama.cpp")
+    print("  Agent: LangGraph ReAct + DuckDuckGo search")
+    print("  STT:   faster-whisper")
     print("  TTS:   Piper")
     print("=" * 60)
     print()
@@ -41,8 +42,8 @@ def main():
     stt = SpeechToText()
     print()
 
-    print("[2/4] Connecting to LLM server...")
-    llm = LLMClient()
+    print("[2/4] Initializing ReAct Agent...")
+    agent = ChatAgent()
     print()
 
     print("[3/4] Initializing Text-to-Speech...")
@@ -95,22 +96,22 @@ def main():
                 print("   (Could not understand speech, try again)")
                 continue
 
-            # Step 3: Get LLM response
-            print("   ⏳ Thinking...")
-            response_text = llm.chat(user_text)
-            if not response_text:
+            # Step 3: Run ReAct agent (may invoke tools)
+            print("   ⏳ Agent thinking...")
+            tts_text, full_text = agent.chat(user_text)
+            if not tts_text:
                 continue
 
-            # Step 4: Synthesize speech
+            # Step 4: Synthesize speech (reasoning already stripped)
             print("   ⏳ Synthesizing speech...")
-            wav_path = tts.synthesize(response_text)
+            wav_path = tts.synthesize(tts_text)
 
             # Step 5: Play response audio
             if wav_path:
                 player.play(wav_path)
                 tts.cleanup_file(wav_path)
             else:
-                print("   (TTS failed, text response shown above)")
+                print(f"   (TTS failed — response: {tts_text})")
 
         except KeyboardInterrupt:
             shutdown()

@@ -1,0 +1,121 @@
+"""
+Agent module — LangGraph ReAct agent using Gemma 4 via llama.cpp server.
+
+Architecture:
+  - ChatOpenAI client → llama.cpp OpenAI-compatible API
+  - LangGraph create_react_agent for tool-calling loop
+  - Conversation history managed manually
+  - Reasoning blocks (<think>...</think>) stripped before TTS
+"""
+
+import re
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
+from langgraph.prebuilt import create_react_agent
+
+import config
+from tools import get_tools
+
+
+def strip_reasoning(text: str) -> str:
+    """
+    Remove <think>...</think> reasoning blocks from the model's response.
+    Returns only the spoken answer suitable for TTS.
+    """
+    # Remove <think> blocks (Gemma / Qwen3 chain-of-thought)
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # Collapse extra blank lines left behind
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+class ChatAgent:
+    """LangGraph ReAct agent wrapping llama.cpp server."""
+
+    def __init__(self):
+        print(f"Connecting to LLM at {config.LLAMA_SERVER_URL} (model: {config.LLAMA_MODEL})...")
+
+        self.llm = ChatOpenAI(
+            base_url=f"{config.LLAMA_SERVER_URL}/v1",
+            api_key="not-needed",          # llama.cpp doesn't require auth
+            model=config.LLAMA_MODEL,
+            max_tokens=config.LLAMA_MAX_TOKENS,
+            temperature=config.LLAMA_TEMPERATURE,
+        )
+
+        self.tools = get_tools()
+        tool_names = [t.name for t in self.tools]
+        print(f"✓ Agent ready. Tools: {tool_names}")
+
+        # Build agent — system prompt injected via prompt parameter
+        self._agent = create_react_agent(
+            model=self.llm,
+            tools=self.tools,
+            prompt=config.LLAMA_SYSTEM_PROMPT,
+        )
+
+        # Conversation history: list of (user_text, assistant_text) tuples
+        self._history: list[tuple[str, str]] = []
+
+    # ── Public API ────────────────────────────────────────────────────────────
+
+    def chat(self, user_text: str) -> tuple[str, str]:
+        """
+        Send user input through the ReAct agent and return the response.
+
+        Returns:
+            (tts_text, full_text) where:
+              - tts_text: reasoning stripped, safe for Piper TTS
+              - full_text: complete raw response for logging/display
+        """
+        if not user_text.strip():
+            return "", ""
+
+        # Build message list from history
+        messages: list[BaseMessage] = []
+        for human, assistant in self._history:
+            messages.append(HumanMessage(content=human))
+            messages.append(AIMessage(content=assistant))
+        messages.append(HumanMessage(content=user_text))
+
+        # Run the agent
+        print("   ⚙ Agent running...")
+        try:
+            result = self._agent.invoke({"messages": messages})
+        except Exception as e:
+            err = f"Agent error: {e}"
+            print(f"   ✗ {err}")
+            return "I encountered an error. Please try again.", err
+
+        # Extract final AIMessage from agent output
+        ai_messages = [
+            m for m in result["messages"]
+            if isinstance(m, AIMessage) and m.content
+        ]
+        full_text = ai_messages[-1].content.strip() if ai_messages else ""
+
+        if not full_text:
+            return "I didn't get a response. Please try again.", ""
+
+        # Strip reasoning for TTS
+        tts_text = strip_reasoning(full_text)
+
+        # Log reasoning separately if present
+        thinking_match = re.search(r"<think>(.*?)</think>", full_text, re.DOTALL)
+        if thinking_match:
+            thinking = thinking_match.group(1).strip()
+            print(f"   💭 Reasoning: {thinking[:200]}{'...' if len(thinking) > 200 else ''}")
+
+        print(f"   🤖 Response: \"{tts_text}\"")
+
+        # Update history (store tts_text so history stays clean)
+        self._history.append((user_text, tts_text))
+        if len(self._history) > config.MAX_CONVERSATION_HISTORY:
+            self._history = self._history[-config.MAX_CONVERSATION_HISTORY:]
+
+        return tts_text, full_text
+
+    def reset_history(self):
+        """Clear conversation history."""
+        self._history = []
+        print("   🔄 Conversation history cleared.")

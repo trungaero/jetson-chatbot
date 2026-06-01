@@ -9,8 +9,8 @@ import os as _os
 # LLM Server (llama.cpp)
 # ==============================================================================
 LLAMA_SERVER_URL = "http://localhost:8080"
-LLAMA_MODEL = "qwen3-1.7b"  # for logging purposes
-LLAMA_MAX_TOKENS = 256
+LLAMA_MODEL = "gemma-4-e2b"       # model name reported by llama.cpp server
+LLAMA_MAX_TOKENS = 512
 LLAMA_TEMPERATURE = 0.7
 
 # Load system prompt from file; fall back to default if file is missing
