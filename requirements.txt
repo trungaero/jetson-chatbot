@@ -6,3 +6,5 @@ langchain-openai
 langchain-community
 langgraph
 duckduckgo-search
+dateparser
+ddgs
