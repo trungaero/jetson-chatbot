@@ -97,7 +97,7 @@ def main():
 
             # Agent handles both user input and reminder triggers identically
             print("   ⏳ Agent thinking...")
-            tts_text, full_text = agent.chat(text)
+            tts_text, full_text = agent.chat("You should remind the user about: " + text + ".It's time now!")
             if not tts_text:
                 continue
 
