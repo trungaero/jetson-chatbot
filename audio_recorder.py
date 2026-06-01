@@ -135,3 +135,39 @@ class AudioRecorder:
         if self._stream:
             self._stream.close()
         self._audio.terminate()
+
+    def start_loop(self, input_queue: "queue.Queue", stt) -> "threading.Thread":
+        """
+        Start a background thread that continuously:
+          1. Waits for the user to press Enter
+          2. Records until Enter is pressed again
+          3. Transcribes with stt
+          4. Puts the text into input_queue as ("user", text)
+
+        The thread runs as a daemon and stops when the process exits.
+        """
+        import queue as _queue
+
+        def _loop():
+            while True:
+                try:
+                    audio = self.record()
+                    if len(audio) == 0:
+                        print("   (No audio captured, try again)")
+                        continue
+                    duration = len(audio) / self.sample_rate
+                    if duration < 0.3:
+                        print("   (Recording too short, try again)")
+                        continue
+                    print("   ⏳ Transcribing...")
+                    text = stt.transcribe(audio)
+                    if not text:
+                        print("   (Could not understand speech, try again)")
+                        continue
+                    input_queue.put(("user", text))
+                except Exception as e:
+                    print(f"   ✗ Recording error: {e}")
+
+        t = threading.Thread(target=_loop, name="RecordingLoop", daemon=True)
+        t.start()
+        return t

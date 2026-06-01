@@ -21,7 +21,7 @@ from stt import SpeechToText
 from agent import ChatAgent
 from tts import TextToSpeech
 from audio_player import AudioPlayer
-from reminder_scheduler import ReminderScheduler, reminder_queue
+from reminder_scheduler import ReminderScheduler
 
 
 def print_banner():
@@ -38,7 +38,8 @@ def print_banner():
 
 def main():
     print_banner()
-
+    # ── Shared input queue (recording thread + reminder scheduler → main loop) ───
+    input_queue: queue.Queue = queue.Queue()
     # ── Initialize components ────────────────────────────────────────────────
     print("[1/4] Initializing Speech-to-Text...")
     stt = SpeechToText()
@@ -49,7 +50,7 @@ def main():
     print()
 
     print("[2b]  Starting reminder scheduler...")
-    scheduler = ReminderScheduler()
+    scheduler = ReminderScheduler(input_queue)
     scheduler.start()
     print()
 
@@ -63,8 +64,12 @@ def main():
     print("✓ Audio I/O ready.")
     print()
 
+    # Start background recording loop — feeds ("user", text) into input_queue
+    recorder.start_loop(input_queue, stt)
+
     print("─" * 60)
     print("Ready! Press [ENTER] to start recording, [ENTER] again to stop.")
+    print("Reminders will interrupt automatically when due.")
     print("Press Ctrl+C to quit.")
     print("─" * 60)
 
@@ -79,57 +84,25 @@ def main():
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
-    # ── Main conversation loop ───────────────────────────────────────────────
-    turn = 0
+    # ── Main loop — drain input_queue (user speech + reminders) ─────────────
     while True:
         try:
-            # ── Check for fired reminders before waiting for user input ──────
-            try:
-                trigger = reminder_queue.get_nowait()
-                print(f"\n   🔔 Processing reminder...")
-                tts_text, _ = agent.chat(trigger)
-                if tts_text:
-                    print("   ⏳ Synthesizing reminder speech...")
-                    wav_path = tts.synthesize(tts_text)
-                    if wav_path:
-                        player.play(wav_path)
-                        tts.cleanup_file(wav_path)
-                continue
-            except queue.Empty:
-                pass  # No reminder due, proceed to normal recording
+            # Block until either a user utterance or a reminder arrives
+            kind, text = input_queue.get()
 
-            turn += 1
+            if kind == "reminder":
+                print(f"\n   🔔 Reminder triggered: processing...")
+            else:
+                print(f"   🗣 User: \"{text}\"")
 
-            # Step 1: Record audio (push-to-talk)
-            audio_data = recorder.record()
-            if len(audio_data) == 0:
-                print("   (No audio captured, try again)")
-                continue
-
-            # Check for very short recordings (likely accidental)
-            duration = len(audio_data) / 16000
-            if duration < 0.3:
-                print("   (Recording too short, try again)")
-                continue
-
-            # Step 2: Transcribe speech to text
-            print("   ⏳ Transcribing...")
-            user_text = stt.transcribe(audio_data)
-            if not user_text:
-                print("   (Could not understand speech, try again)")
-                continue
-
-            # Step 3: Run ReAct agent (may invoke tools)
+            # Agent handles both user input and reminder triggers identically
             print("   ⏳ Agent thinking...")
-            tts_text, full_text = agent.chat(user_text)
+            tts_text, full_text = agent.chat(text)
             if not tts_text:
                 continue
 
-            # Step 4: Synthesize speech (reasoning already stripped)
             print("   ⏳ Synthesizing speech...")
             wav_path = tts.synthesize(tts_text)
-
-            # Step 5: Play response audio
             if wav_path:
                 player.play(wav_path)
                 tts.cleanup_file(wav_path)

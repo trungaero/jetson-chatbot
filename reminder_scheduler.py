@@ -4,9 +4,10 @@ Reminder Scheduler — background thread that fires reminders when due.
 Flow:
   1. set_reminder tool writes to reminders.json
   2. ReminderScheduler polls every POLL_INTERVAL seconds
-  3. When a reminder is due, it puts a trigger string into reminder_queue
-  4. main.py checks reminder_queue each loop iteration and injects it as
-     an agent prompt — the agent then speaks the reminder aloud via TTS
+  3. When a reminder is due it puts ("reminder", trigger) into the shared
+     input_queue passed at construction time
+  4. main.py's main loop unblocks on input_queue.get() and processes it
+     exactly like user speech — no polling needed
 """
 
 import json
@@ -16,9 +17,6 @@ import uuid
 import os
 from datetime import datetime
 
-
-# Shared queue: scheduler → main loop
-reminder_queue: queue.Queue = queue.Queue()
 
 REMINDERS_FILE = os.path.join(os.path.dirname(__file__), "reminders.json")
 POLL_INTERVAL = 20  # seconds between checks
@@ -80,7 +78,12 @@ def cancel_reminder(reminder_id: str) -> bool:
 class ReminderScheduler:
     """Background thread that checks reminders and fires them when due."""
 
-    def __init__(self):
+    def __init__(self, input_queue: queue.Queue):
+        """
+        Args:
+            input_queue: Shared queue to put ("reminder", trigger) tuples into.
+        """
+        self._input_queue = input_queue
         self._stop_event = threading.Event()
         self._thread = threading.Thread(
             target=self._run,
@@ -112,7 +115,7 @@ class ReminderScheduler:
             due = datetime.fromisoformat(reminder["due"])
             if now >= due:
                 trigger = f"[REMINDER] Please remind the user about: {reminder['task']}"
-                reminder_queue.put(trigger)
+                self._input_queue.put(("reminder", trigger))
                 reminder["fired"] = True
                 changed = True
                 print(f"\n   🔔 Reminder fired: {reminder['task']}")
