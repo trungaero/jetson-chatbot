@@ -161,6 +161,7 @@ class ReminderAgent:
         ]
         try:
             response = self._llm.invoke(messages)
+            print(f"   ⚙ ReminderAgent response: \"{response.content.strip()}\"")
             text = strip_reasoning(response.content.strip())
             print(f"   🔔 Reminder announcement: \"{text}\"")
             return text
