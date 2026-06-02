@@ -8,3 +8,4 @@ langgraph
 duckduckgo-search
 dateparser
 ddgs
+langchain

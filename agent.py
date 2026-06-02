@@ -12,6 +12,7 @@ import re
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 
 import config
 from tools import get_tools
@@ -57,7 +58,7 @@ class ChatAgent:
         print(f"✓ Agent ready. Tools: {tool_names}")
 
         # Build agent — system prompt injected via prompt parameter
-        self._agent = create_react_agent(
+        self._agent = create_agent(
             model=self.llm,
             tools=self.tools,
             prompt=config.LLAMA_SYSTEM_PROMPT,
