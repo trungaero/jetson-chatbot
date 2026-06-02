@@ -28,17 +28,17 @@ else:
 # ==============================================================================
 # Speech-to-Text (faster-whisper)
 # ==============================================================================
-WHISPER_MODEL_SIZE = "base"          # Options: tiny, base, small, medium
+WHISPER_MODEL_SIZE = "./models/PhoWhisper-base-ct2-fasterWhisper" # "base"          # Options: tiny, base, small, medium
 WHISPER_DEVICE = "cpu"              # "cuda" for GPU, "cpu" for CPU-only
 WHISPER_COMPUTE_TYPE = "int8"     # float16 for GPU, int8 for CPU
-WHISPER_LANGUAGE = "en"              # Set to None for auto-detect
+WHISPER_LANGUAGE = None # "en"              # Set to None for auto-detect
 WHISPER_BEAM_SIZE = 5
 
 # ==============================================================================
 # Text-to-Speech (Piper)
 # ==============================================================================
 PIPER_EXECUTABLE = "./piper/piper"
-PIPER_MODEL = "./piper/models/en_US-lessac-medium.onnx"
+PIPER_MODEL = "./piper/models/vi_VN-vais1000-medium.onnx" #en_US-lessac-medium.onnx"
 PIPER_OUTPUT_DIR = "/tmp"
 
 # ==============================================================================
@@ -47,7 +47,7 @@ PIPER_OUTPUT_DIR = "/tmp"
 AUDIO_DEVICE_INDEX = None       # PyAudio device index (None = default/auto-detect)
 AUDIO_CARD = 2                  # ALSA card number
 AUDIO_DEVICE = 0                # ALSA device number
-AUDIO_ALSA_DEVICE = "plughw:2,0"  # ALSA device string for aplay (plughw handles format conversion)
+AUDIO_ALSA_DEVICE = "plughw:0,0"  # ALSA device string for aplay (plughw handles format conversion)
 
 # ==============================================================================
 # Audio Recording
