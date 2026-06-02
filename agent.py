@@ -11,8 +11,9 @@ Architecture:
 import re
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
-from langgraph.prebuilt import create_react_agent
 from langchain.agents import create_agent
+from langchain_core.utils.uuid import uuid7
+from langgraph.checkpoint.memory import InMemorySaver
 
 import config
 from tools import get_tools
@@ -53,7 +54,10 @@ class ChatAgent:
             temperature=config.LLAMA_TEMPERATURE,
         )
 
+
         self.tools = get_tools()
+        self.checkpointer = InMemorySaver()  # For demo purposes; replace with persistent storage in production
+
         tool_names = [t.name for t in self.tools]
         print(f"✓ Agent ready. Tools: {tool_names}")
 
@@ -61,11 +65,10 @@ class ChatAgent:
         self._agent = create_agent(
             model=self.llm,
             tools=self.tools,
-            prompt=config.LLAMA_SYSTEM_PROMPT,
+            system_prompt=config.LLAMA_SYSTEM_PROMPT,
+            checkpointer=self.checkpointer,
         )
 
-        # Conversation history: list of (user_text, assistant_text) tuples
-        self._history: list[tuple[str, str]] = []
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -83,15 +86,13 @@ class ChatAgent:
 
         # Build message list from history
         messages: list[BaseMessage] = []
-        for human, assistant in self._history:
-            messages.append(HumanMessage(content=human))
-            messages.append(AIMessage(content=assistant))
         messages.append(HumanMessage(content=user_text))
 
         # Run the agent
         print("   ⚙ Agent running...")
         try:
-            result = self._agent.invoke({"messages": messages})
+            result = self._agent.invoke({"messages": messages},
+                                        config={"configurable": {"thread_id": "12345"}})
         except Exception as e:
             err = f"Agent error: {e}"
             print(f"   ✗ {err}")
@@ -118,16 +119,11 @@ class ChatAgent:
 
         print(f"   🤖 Response: \"{tts_text}\"")
 
-        # Update history (store tts_text so history stays clean)
-        self._history.append((user_text, tts_text))
-        if len(self._history) > config.MAX_CONVERSATION_HISTORY:
-            self._history = self._history[-config.MAX_CONVERSATION_HISTORY:]
-
         return tts_text, full_text
 
     def reset_history(self):
         """Clear conversation history."""
-        self._history = []
+        self.checkpointer = InMemorySaver()  # Reset in-memory history
         print("   🔄 Conversation history cleared.")
 
 
