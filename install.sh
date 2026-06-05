@@ -1,5 +1,5 @@
 # Copy scripts into project folder
-cp start-gemma.sh ~chatbot-jetson/jetson-chatbot/start-gemma.sh
+cp start-gemma.sh ~/chatbot-jetson/jetson-chatbot/start-gemma.sh
 cp start.sh ~/chatbot-jetson/jetson-chatbot/start.sh
 chmod +x ~/chatbot-jetson/jetson-chatbot/start-gemma.sh ~/chatbot-jetson/jetson-chatbot/start.sh
 
