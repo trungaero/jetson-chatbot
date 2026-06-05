@@ -1,0 +1,14 @@
+[Unit]
+Description=Gemma LLM Server (llama.cpp)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=%i
+ExecStart=/home/%i/jetson-chatbot/start-gemma.sh
+ExecStop=docker stop gemma-server
+
+[Install]
+WantedBy=multi-user.target

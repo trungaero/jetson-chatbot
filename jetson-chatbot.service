@@ -1,0 +1,15 @@
+[Unit]
+Description=Jetson Chatbot
+# Start after Docker and llama-server are up
+After=docker.service gemma-server@%i.service
+Requires=docker.service gemma-server@%i.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=%i
+ExecStart=/home/%i/jetson-chatbot/start.sh
+ExecStop=docker stop jetson-chatbot
+
+[Install]
+WantedBy=multi-user.target
