@@ -22,6 +22,7 @@ from agent import ChatAgent, ReminderAgent
 from tts import TextToSpeech
 from audio_player import AudioPlayer
 from reminder_scheduler import ReminderScheduler
+from vad_recorder import VADRecorder
 
 
 def print_banner():
@@ -62,7 +63,8 @@ def main():
     print()
 
     print("[4/4] Initializing Audio I/O...")
-    recorder = AudioRecorder()
+    # recorder = AudioRecorder()
+    recorder = VADRecorder()
     player = AudioPlayer(use_aplay=True)
     print("✓ Audio I/O ready.")
     print()

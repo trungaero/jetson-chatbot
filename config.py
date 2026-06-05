@@ -45,7 +45,7 @@ PIPER_OUTPUT_DIR = "/tmp"
 # Audio Device (Jabra Link 380 — card 2, device 0)
 # ==============================================================================
 AUDIO_DEVICE_INDEX = None       # PyAudio device index (None = default/auto-detect)
-AUDIO_CARD = 2                  # ALSA card number
+AUDIO_CARD = 0                  # ALSA card number
 AUDIO_DEVICE = 0                # ALSA device number
 AUDIO_ALSA_DEVICE = "plughw:0,0"  # ALSA device string for aplay (plughw handles format conversion)
 
@@ -61,3 +61,12 @@ AUDIO_CHUNK_SIZE = 1024         # Frames per buffer
 # Conversation
 # ==============================================================================
 MAX_CONVERSATION_HISTORY = 10   # Max number of message pairs to keep in context
+
+
+
+# Voice Activity Detection
+VAD_ENABLED = True
+VAD_THRESHOLD = 0.5          # Speech confidence threshold (0.0–1.0)
+VAD_SILENCE_DURATION = 1.0   # Seconds of silence before stopping (end of utterance)
+VAD_MIN_SPEECH_DURATION = 0.3  # Ignore blips shorter than this (seconds)
+VAD_PRE_ROLL_CHUNKS = 5      # Chunks to include before speech starts (avoids clipping)

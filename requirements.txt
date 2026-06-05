@@ -9,3 +9,6 @@ duckduckgo-search
 dateparser
 ddgs
 langchain
+torch
+torchaudio
+silero-vad
