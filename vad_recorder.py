@@ -125,23 +125,15 @@ class VADRecorder:
         return buffer.getvalue()
 
     def start_loop(self, input_queue, stt):
-        """
-        Continuously listen for speech and push transcribed text into input_queue.
-        Runs in a background daemon thread — matches the interface main.py expects.
-
-        Args:
-            input_queue: queue.Queue that main.py reads from
-            stt: your STT object with a .transcribe(wav_bytes) -> str method
-        """
         def _loop():
             while True:
                 try:
-                    wav_bytes = self.record_to_wav_bytes()
-                    if not wav_bytes:
+                    audio_float = self.record()
+                    if len(audio_float) == 0:
                         continue
-                    text = stt.transcribe(wav_bytes)
+                    text = stt.transcribe(audio_float)
                     if text and text.strip():
-                        input_queue.put(text.strip())
+                        input_queue.put(("user", text.strip()))
                 except Exception as e:
                     print(f"[VADRecorder] error: {e}")
 
