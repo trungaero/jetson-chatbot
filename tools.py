@@ -7,6 +7,7 @@ from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from datetime import datetime
 import dateparser
+import subprocess
 
 import reminder_scheduler
 
@@ -112,6 +113,42 @@ def cancel_reminder_tool(reminder_id: str) -> str:
     )
 
 
+# ── System Control ────────────────────────────────────────────────────────────
+
+@tool
+def shutdown_device(delay_seconds: int = 0) -> str:
+    """Shutdown the Jetson Orin device.
+    Use this when the user explicitly requests to power down or shutdown the device.
+
+    Args:
+        delay_seconds: Delay before shutdown in seconds (default: 0 for immediate).
+                      Useful for graceful shutdown with a warning.
+
+    Returns:
+        Confirmation message or error if shutdown fails.
+    """
+    try:
+        print(f"   🔴 Initiating device shutdown (delay: {delay_seconds}s)...")
+        if delay_seconds > 0:
+            subprocess.run(
+                ["sudo", "shutdown", "-h", f"+{delay_seconds // 60}", 
+                 f"Device shutting down in {delay_seconds} seconds."],
+                check=True,
+                timeout=10
+            )
+        else:
+            subprocess.run(
+                ["sudo", "shutdown", "-h", "now"],
+                check=True,
+                timeout=10
+            )
+        return "Device shutdown command sent successfully. The Jetson Orin is shutting down."
+    except subprocess.CalledProcessError as e:
+        return f"Shutdown command failed: {e}. Make sure the application has sudo privileges."
+    except Exception as e:
+        return f"Error initiating shutdown: {e}"
+
+
 # ── Tool Registry ────────────────────────────────────────────────────────────
 
 def get_tools() -> list:
@@ -121,4 +158,5 @@ def get_tools() -> list:
         set_reminder,
         list_reminders_tool,
         cancel_reminder_tool,
+        shutdown_device,
     ]
