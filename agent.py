@@ -56,7 +56,8 @@ class ChatAgent:
 
 
         self.tools = get_tools()
-        self.checkpointer = InMemorySaver()  # For demo purposes; replace with persistent storage in production
+        self.checkpointer = InMemorySaver()
+        self.history: list[BaseMessage] = []
 
         tool_names = [t.name for t in self.tools]
         print(f"✓ Agent ready. Tools: {tool_names}")
@@ -84,15 +85,15 @@ class ChatAgent:
         if not user_text.strip():
             return "", ""
 
-        # Build message list from history
-        messages: list[BaseMessage] = []
-        messages.append(HumanMessage(content=user_text))
+        # Append new message and keep only the last 10
+        self.history.append(HumanMessage(content=user_text))
+        self.history = self.history[-10:]
 
         # Run the agent
         print("   ⚙ Agent running...")
         try:
-            result = self._agent.invoke({"messages": messages},
-                                        config={"configurable": {"thread_id": "12345"}})
+            result = self._agent.invoke({"messages": self.history},
+                                        config={"configurable": {"thread_id": str(uuid7())}})
         except Exception as e:
             err = f"Agent error: {e}"
             print(f"   ✗ {err}")
@@ -119,11 +120,14 @@ class ChatAgent:
 
         print(f"   🤖 Response: \"{tts_text}\"")
 
+        # Persist AI response in history for future turns
+        self.history.append(AIMessage(content=full_text))
+
         return tts_text, full_text
 
     def reset_history(self):
         """Clear conversation history."""
-        self.checkpointer = InMemorySaver()  # Reset in-memory history
+        self.history = []
         print("   🔄 Conversation history cleared.")
 
 
