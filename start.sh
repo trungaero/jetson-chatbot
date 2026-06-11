@@ -7,7 +7,7 @@ CONTAINER_NAME="jetson-chatbot"
 IMAGE_NAME="jetson-chatbot"
 PIPER_MODELS="${HOME}/piper/models"
 HF_CACHE="${HOME}/.cache/huggingface"
-TORCH_CACHE="${HOME}/chatbot-jetson/jetson-chatbot/data/models/torch/hub
+TORCH_CACHE="${HOME}/chatbot-jetson/jetson-chatbot/data/models/torch/hub"
 
 echo "[$(date)] Starting $CONTAINER_NAME..."
 

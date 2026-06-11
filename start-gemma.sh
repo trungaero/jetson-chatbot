@@ -7,6 +7,7 @@ CONTAINER_NAME="gemma-server"
 IMAGE_NAME="ghcr.io/nvidia-ai-iot/llama_cpp:gemma4-jetson-orin"
 HF_CACHE="${HOME}/.cache/huggingface"
 MODEL_PATH="/root/.cache/huggingface/hub/gemma-4-E2B-it-Q4_K_M.gguf"
+MMPROJ_PATH="/root/.cache/huggingface/hub/mmproj-F16.gguf"
 
 echo "[$(date)] Starting $CONTAINER_NAME..."
 
@@ -27,6 +28,7 @@ docker run -d \
     "$IMAGE_NAME" \
     llama-server \
         -m "$MODEL_PATH" \
+	--mmproj "$MMPROJ_PATH" \
         --host 0.0.0.0 \
         --port 8080 \
         --n-gpu-layers 99 \

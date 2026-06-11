@@ -1,7 +1,7 @@
 # Copy scripts into project folder
-cp start-gemma.sh ~/chatbot-jetson/jetson-chatbot/start-gemma.sh
-cp start.sh ~/chatbot-jetson/jetson-chatbot/start.sh
-chmod +x ~/chatbot-jetson/jetson-chatbot/start-gemma.sh ~/chatbot-jetson/jetson-chatbot/start.sh
+cp start-gemma.sh ~/jetson-chatbot/start-gemma.sh
+cp start.sh ~/jetson-chatbot/start.sh
+chmod +x ~/jetson-chatbot/start-gemma.sh ~/jetson-chatbot/start.sh
 
 # Install both systemd services
 sudo cp gemma-server.service /etc/systemd/system/gemma-server@trung.service
