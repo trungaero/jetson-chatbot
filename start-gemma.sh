@@ -32,7 +32,7 @@ docker run -d \
         --host 0.0.0.0 \
         --port 8080 \
         --n-gpu-layers 99 \
-        --ctx-size 8192 \
+        --ctx-size 32768 \
         --reasoning off
 
 echo "[$(date)] $CONTAINER_NAME started, waiting for server to be ready..."
