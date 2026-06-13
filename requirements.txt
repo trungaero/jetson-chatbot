@@ -1,7 +1,6 @@
 faster-whisper
 pyaudio
 requests
-numpy
 langchain-openai
 langchain-community
 langgraph
@@ -12,4 +11,5 @@ langchain
 torch
 torchaudio
 silero-vad
-opencv-python
+v4l2py
+Pillow

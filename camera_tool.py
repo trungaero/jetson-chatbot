@@ -1,44 +1,32 @@
-"""
-Camera capture tool for the LangGraph ReAct agent.
-
-Captures a temporary snapshot from the first available camera device.
-Maintains a rolling buffer of at most MAX_CAPTURES images on disk.
-"""
-
+import io
 import os
 import glob
 import base64
 from datetime import datetime
+from v4l2py import Device
+from PIL import Image
 
-import cv2
+CAPTURE_DIR = "/tmp/agent_captures"
+MAX_CAPTURES = 20
+_CAMERA_PATH = None
 
-# ── Configuration ─────────────────────────────────────────────────────────────
 
-CAPTURE_DIR = "/tmp/agent_captures"   # Temporary; lives in RAM-backed tmpfs
-MAX_CAPTURES = 20                      # Maximum images kept on disk at once
-CAMERA_INDEX = None                    # None = auto-detect on first use
-
-# ── Internal helpers ──────────────────────────────────────────────────────────
-
-def _detect_camera() -> int | None:
-    """Scan /dev/video* and return the index of the first working camera."""
-    for i in range(10):
-        cap = cv2.VideoCapture(i)
-        if cap.isOpened():
-            ret, _ = cap.read()
-            cap.release()
-            if ret:
-                print(f"   📷 Camera auto-detected at /dev/video{i}")
-                return i
+def _detect_camera() -> str | None:
+    for path in sorted(glob.glob("/dev/video*")):
+        try:
+            with Device.from_path(path) as cam:
+                cam.video_capture.set_format(640, 480, "MJPG")
+                # if it opens without error, it's usable
+                print(f"   📷 Camera detected: {path}")
+                return path
+        except Exception:
+            continue
     return None
 
 
 def _evict_old_captures():
-    """Delete oldest captures when the buffer exceeds MAX_CAPTURES."""
-    pattern = os.path.join(CAPTURE_DIR, "capture_*.jpg")
-    files = sorted(glob.glob(pattern))          # ascending by timestamp name
-    excess = len(files) - MAX_CAPTURES + 1      # +1 makes room for the new one
-    for path in files[:excess]:
+    files = sorted(glob.glob(os.path.join(CAPTURE_DIR, "capture_*.jpg")))
+    for path in files[:max(0, len(files) - MAX_CAPTURES + 1)]:
         try:
             os.remove(path)
         except OSError:
@@ -46,54 +34,37 @@ def _evict_old_captures():
 
 
 def capture_image_to_disk() -> str:
-    """
-    Capture one frame from the camera and save it as a JPEG.
-
-    Returns:
-        Absolute path to the saved image file.
-
-    Raises:
-        RuntimeError: If no camera is found or the frame cannot be grabbed.
-    """
-    global CAMERA_INDEX
-
+    global _CAMERA_PATH
     os.makedirs(CAPTURE_DIR, exist_ok=True)
 
-    # Auto-detect camera index once
-    if CAMERA_INDEX is None:
-        CAMERA_INDEX = _detect_camera()
-    if CAMERA_INDEX is None:
+    if _CAMERA_PATH is None:
+        _CAMERA_PATH = _detect_camera()
+    if _CAMERA_PATH is None:
         raise RuntimeError("No camera device found on this system.")
 
-    cap = cv2.VideoCapture(CAMERA_INDEX)
-    if not cap.isOpened():
-        # Try re-detection in case the device changed
-        CAMERA_INDEX = _detect_camera()
-        if CAMERA_INDEX is None:
-            raise RuntimeError("Cannot open camera device.")
-        cap = cv2.VideoCapture(CAMERA_INDEX)
-
     try:
-        # Warm-up: discard a few frames so auto-exposure settles
-        for _ in range(3):
-            cap.read()
+        with Device.from_path(_CAMERA_PATH) as cam:
+            cam.video_capture.set_format(640, 480, "MJPG")
+            # discard a few frames so auto-exposure settles
+            for i, frame in enumerate(cam):
+                if i >= 4:
+                    jpeg_bytes = bytes(frame)
+                    break
 
-        ret, frame = cap.read()
-        if not ret or frame is None:
-            raise RuntimeError("Failed to grab a frame from the camera.")
-
+        # v4l2py in MJPG mode gives raw JPEG bytes — verify and re-encode
+        image = Image.open(io.BytesIO(jpeg_bytes))
         _evict_old_captures()
-
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = os.path.join(CAPTURE_DIR, f"capture_{timestamp}.jpg")
-        cv2.imwrite(path, frame)
+        image.save(path, "JPEG", quality=85)
         print(f"   📷 Image saved: {path}")
         return path
-    finally:
-        cap.release()
+
+    except Exception as e:
+        _CAMERA_PATH = None  # force re-detection next time
+        raise RuntimeError(f"Camera capture failed: {e}") from e
 
 
 def image_to_base64(path: str) -> str:
-    """Return a base64-encoded JPEG string suitable for an LLM vision API."""
     with open(path, "rb") as fh:
         return base64.b64encode(fh.read()).decode("utf-8")
