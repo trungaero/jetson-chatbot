@@ -32,6 +32,19 @@ until curl -sf http://localhost:8080/health > /dev/null 2>&1; do
 done
 echo "[$(date)] llama-server is ready."
 
+# -- Detect camera devices on the host -----------------------
+CAMERA_DEVICES=""
+for dev in /dev/video*; do
+    if [ -e "$dev" ]; then
+        CAMERA_DEVICES="$CAMERA_DEVICES --device $dev"
+        echo "[$(date)] Found camera device: $dev"
+    fi
+done
+
+if [ -z "$CAMERA_DEVICES" ]; then
+    echo "[$(date)] WARNING: No /dev/video* devices found. Camera tool will not work."
+fi
+
 # -- Start the container -------------------------------------
 docker run -d \
     --name "$CONTAINER_NAME" \
@@ -39,6 +52,8 @@ docker run -d \
     --runtime nvidia \
     --network host \
     --device /dev/snd \
+    $CAMERA_DEVICES \
+    --group-add video \
     -v "${PIPER_MODELS}:/opt/piper/models" \
     -v "${HF_CACHE}:/root/.cache/huggingface" \
     -v "${TORCH_CACHE}:/data/models/torch/hub" \
