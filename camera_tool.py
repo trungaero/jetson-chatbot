@@ -12,7 +12,9 @@ import glob
 import base64
 import warnings
 from datetime import datetime
+import requests as _http
 from PIL import Image
+import config
 
 # Suppress the "no longer maintained" warning — we know, it still works fine
 with warnings.catch_warnings():
@@ -154,3 +156,104 @@ def image_to_base64(path: str) -> str:
     """Return a base64-encoded JPEG string suitable for an LLM vision API."""
     with open(path, "rb") as fh:
         return base64.b64encode(fh.read()).decode("utf-8")
+
+
+def capture_image_b64() -> dict:
+    """Capture an image and return its path, base64 string, and timestamp.
+    Returns:
+        A dict with:
+          - "image_path": path to the saved JPEG on disk
+          - "base64_jpeg": base64-encoded JPEG string ready for a vision model
+          - "timestamp": ISO-format capture timestamp
+    """
+    try:
+        path = capture_image_to_disk()
+        b64 = image_to_base64(path)
+        from datetime import datetime as _dt
+        return {
+            "image_path": path,
+            "base64_jpeg": b64,
+            "timestamp": _dt.now().isoformat(timespec="seconds"),
+        }
+    except Exception as e:
+        return {
+            "image_path": None,
+            "base64_jpeg": None,
+            "timestamp": None,
+            "error": str(e),
+        }
+
+
+def describe_image_with_local_llm(base64_jpeg: str, user_question: str = "") -> str:
+    """
+    Send a base64 JPEG to the local llama-server (gemma4-e2b) for visual
+    description using the OpenAI multimodal image_url format.
+
+    llama-server accepts images as:
+        { "type": "image_url",
+          "image_url": { "url": "data:image/jpeg;base64,<data>" } }
+
+    Args:
+        base64_jpeg: Base64-encoded JPEG string (no data-URI prefix).
+        user_question: Optional context from the user's original query.
+
+    Returns:
+        A plain-text description of the image, or an error message.
+    """
+    data_uri = f"data:image/jpeg;base64,{base64_jpeg}"
+
+    prompt_text = (
+        f"The user asked: \"{user_question}\"\nDescribe what you see in this image."
+        if user_question
+        else "Describe what you see in this image."
+    )
+
+    payload = {
+        "model": config.LLAMA_MODEL,
+        "max_tokens": config.VISION_MAX_TOKENS,
+        "temperature": 0.5,
+        "stream": False,
+        "messages": [
+            {"role": "system", "content": config.VISION_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": data_uri},
+                    },
+                    {"type": "text", "text": prompt_text},
+                ],
+            },
+        ],
+    }
+
+    try:
+        resp = _http.post(
+            f"{config.LLAMA_SERVER_URL}/v1/chat/completions",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        text = data["choices"][0]["message"]["content"].strip()
+        return text or "I could not generate a description."
+    except _http.exceptions.Timeout:
+        return "Vision request timed out. Please try again."
+    except _http.exceptions.ConnectionError:
+        return (
+            f"Could not reach the llama-server at {config.LLAMA_SERVER_URL}. "
+            "Make sure it is running."
+        )
+    except _http.exceptions.HTTPError as e:
+        body = ""
+        try:
+            body = e.response.text[:300]
+        except Exception:
+            pass
+        return f"llama-server vision error ({e}): {body}"
+    except (KeyError, IndexError) as e:
+        return f"Unexpected response format from llama-server: {e}"
+    except Exception as e:
+        return f"Unexpected error during vision analysis: {e}"

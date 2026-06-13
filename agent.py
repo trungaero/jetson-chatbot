@@ -14,8 +14,6 @@ Architecture:
 import re
 import json
 
-import requests as _http
-
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, ToolMessage
 from langchain.agents import create_agent
@@ -35,15 +33,6 @@ REMINDER_SYSTEM_PROMPT = (
     "Example: 'Hey, just a heads-up — it's time to take your medication.'"
 )
 
-_VISION_SYSTEM_PROMPT = (
-    "You are the vision module of a voice assistant running on a Jetson device. "
-    "Describe what you see in the image in 2-4 natural, conversational sentences. "
-    "Focus on the most relevant objects, people, or scene. "
-    "Do not use markdown, bullet points, or lists."
-)
-
-_VISION_MAX_TOKENS = 300
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -54,79 +43,6 @@ def strip_reasoning(text: str) -> str:
     return cleaned.strip()
 
 
-def _describe_image_with_local_llm(base64_jpeg: str, user_question: str = "") -> str:
-    """
-    Send a base64 JPEG to the local llama-server (gemma4-e2b) for visual
-    description using the OpenAI multimodal image_url format.
-
-    llama-server accepts images as:
-        { "type": "image_url",
-          "image_url": { "url": "data:image/jpeg;base64,<data>" } }
-
-    Args:
-        base64_jpeg: Base64-encoded JPEG string (no data-URI prefix).
-        user_question: Optional context from the user's original query.
-
-    Returns:
-        A plain-text description of the image, or an error message.
-    """
-    data_uri = f"data:image/jpeg;base64,{base64_jpeg}"
-
-    prompt_text = (
-        f"The user asked: \"{user_question}\"\nDescribe what you see in this image."
-        if user_question
-        else "Describe what you see in this image."
-    )
-
-    payload = {
-        "model": config.LLAMA_MODEL,
-        "max_tokens": _VISION_MAX_TOKENS,
-        "temperature": 0.5,
-        "stream": False,
-        "messages": [
-            {"role": "system", "content": _VISION_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": data_uri},
-                    },
-                    {"type": "text", "text": prompt_text},
-                ],
-            },
-        ],
-    }
-
-    try:
-        resp = _http.post(
-            f"{config.LLAMA_SERVER_URL}/v1/chat/completions",
-            json=payload,
-            headers={"Content-Type": "application/json"},
-            timeout=60,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        text = data["choices"][0]["message"]["content"].strip()
-        return text or "I could not generate a description."
-    except _http.exceptions.Timeout:
-        return "Vision request timed out. Please try again."
-    except _http.exceptions.ConnectionError:
-        return (
-            f"Could not reach the llama-server at {config.LLAMA_SERVER_URL}. "
-            "Make sure it is running."
-        )
-    except _http.exceptions.HTTPError as e:
-        body = ""
-        try:
-            body = e.response.text[:300]
-        except Exception:
-            pass
-        return f"llama-server vision error ({e}): {body}"
-    except (KeyError, IndexError) as e:
-        return f"Unexpected response format from llama-server: {e}"
-    except Exception as e:
-        return f"Unexpected error during vision analysis: {e}"
 
 
 # ── Chat Agent ────────────────────────────────────────────────────────────────
@@ -188,39 +104,15 @@ class ChatAgent:
         try:
             result = self._agent.invoke(
                 {"messages": self.history},
-                config={"configurable": {"thread_id": self._thread_id}},
+                # config={"configurable": {"thread_id": self._thread_id}},
             )
         except Exception as e:
             err = f"Agent error: {e}"
             print(f"   ✗ {err}")
             return "I encountered an error. Please try again.", err
-
-        # ── Vision post-processing ────────────────────────────────────────────
-        # If the agent called look_around_with_camera, intercept the tool
-        # result, send the image to the local llama-server vision endpoint,
-        # replace the raw base64 payload with a human-readable description,
-        # then re-invoke the agent so it can produce a proper spoken reply.
-        messages_out = result.get("messages", [])
-        vision_description = self._extract_vision_description(messages_out, user_text)
-
-        if vision_description:
-            # Inject the description as a new human message and re-run
-            inject = HumanMessage(
-                content=(
-                    f"[Camera vision result]: {vision_description}\n\n"
-                    f"Now answer the user's original question: \"{user_text}\""
-                )
-            )
-            try:
-                result = self._agent.invoke(
-                    {"messages": self.history[:-1] + [inject]},
-                    config={"configurable": {"thread_id": self._thread_id + "-vision"}},
-                )
-                messages_out = result.get("messages", [])
-            except Exception as e:
-                print(f"   ✗ Vision re-invoke error: {e}")
-
         # ── Extract final response ────────────────────────────────────────────
+        messages_out = result.get("messages", [])
+        
         ai_messages = [
             m for m in messages_out
             if isinstance(m, AIMessage) and m.content
@@ -246,43 +138,6 @@ class ChatAgent:
 
         return tts_text, full_text
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
-
-    def _extract_vision_description(
-        self, messages: list[BaseMessage], user_text: str
-    ) -> str | None:
-        """
-        Scan agent messages for a look_around_with_camera tool result that
-        contains a base64_jpeg payload. If found, call the local llama-server
-        vision endpoint and return a plain-text description. Returns None otherwise.
-        """
-        for msg in messages:
-            if not isinstance(msg, ToolMessage):
-                continue
-
-            content = msg.content
-            if isinstance(content, str):
-                try:
-                    content = json.loads(content)
-                except Exception:
-                    continue
-
-            if not isinstance(content, dict):
-                continue
-
-            err = content.get("error")
-            if err:
-                print(f"   ✗ Camera tool error: {err}")
-                return f"The camera tool reported an error: {err}"
-
-            b64 = content.get("base64_jpeg")
-            if b64:
-                print("   🔍 Sending captured image to local llama-server for vision analysis...")
-                description = _describe_image_with_local_llm(b64, user_text)
-                print(f"   👁  Vision description: \"{description[:120]}{'...' if len(description) > 120 else ''}\"")
-                return description
-
-        return None
 
     def reset_history(self):
         """Clear conversation history."""

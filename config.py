@@ -70,3 +70,14 @@ VAD_THRESHOLD = 0.5          # Speech confidence threshold (0.0–1.0)
 VAD_SILENCE_DURATION = 1.0   # Seconds of silence before stopping (end of utterance)
 VAD_MIN_SPEECH_DURATION = 0.3  # Ignore blips shorter than this (seconds)
 VAD_PRE_ROLL_CHUNKS = 5      # Chunks to include before speech starts (avoids clipping)
+
+
+
+VISION_SYSTEM_PROMPT = (
+    "You are the vision module of a voice assistant running on a Jetson device. "
+    "Describe what you see in the image in 2-4 natural, conversational sentences. "
+    "Focus on the most relevant objects, people, or scene. "
+    "Do not use markdown, bullet points, or lists."
+)
+
+VISION_MAX_TOKENS = 600

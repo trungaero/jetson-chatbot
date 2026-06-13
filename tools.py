@@ -10,7 +10,7 @@ import dateparser
 import subprocess
 
 import reminder_scheduler
-import camera_tool
+from camera_tool import describe_image_with_local_llm, capture_image_b64
 
 
 # ── Internet Search ──────────────────────────────────────────────────────────
@@ -153,36 +153,27 @@ def shutdown_device(delay_seconds: int = 0) -> str:
 # ── Camera Vision ────────────────────────────────────────────────────────────
 
 @tool
-def look_around_with_camera() -> dict:
+def look_around_with_camera() -> str:
     """Capture what the camera currently sees and return it for visual analysis.
     Use this tool whenever the user asks what you see, what is in front of you,
     what is happening around you, to describe the environment, or any similar
     request that requires vision or visual observation.
 
     Returns:
-        A dict with:
-          - "image_path": path to the saved JPEG on disk
-          - "base64_jpeg": base64-encoded JPEG string ready for a vision model
-          - "timestamp": ISO-format capture timestamp
+        Description of the current camera view, or an error message if capture/analysis fails.
     """
     try:
-        path = camera_tool.capture_image_to_disk()
-        b64 = camera_tool.image_to_base64(path)
-        from datetime import datetime as _dt
-        return {
-            "image_path": path,
-            "base64_jpeg": b64,
-            "timestamp": _dt.now().isoformat(timespec="seconds"),
-        }
+        image_data = capture_image_b64()
+        base64_jpeg = image_data.get("base64_jpeg", None)
+        if not base64_jpeg:
+            error_msg = image_data.get("error", "Unknown error during image capture.")
+            return f"Failed to capture image: {error_msg}"
+        else:
+            print("   ⏳ Analyzing image with local LLM...")
+            description = describe_image_with_local_llm(base64_jpeg)
+            return description
     except Exception as e:
-        return {
-            "image_path": None,
-            "base64_jpeg": None,
-            "timestamp": None,
-            "error": str(e),
-        }
-
-
+        return f"Error during camera capture or analysis: {e}"
 # ── Tool Registry ────────────────────────────────────────────────────────────
 
 def get_tools() -> list:
