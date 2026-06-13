@@ -53,8 +53,12 @@ class VADRecorder:
     def record(self) -> np.ndarray:
         """Blocking: listen, detect speech, record until silence, return audio."""
         threshold = config.VAD_THRESHOLD
-        silence_limit = int(config.VAD_SILENCE_DURATION * self.sample_rate / self.chunk_size)
-        min_speech_chunks = int(config.VAD_MIN_SPEECH_DURATION * self.sample_rate / self.chunk_size)
+        silence_limit = int(
+            config.VAD_SILENCE_DURATION * self.sample_rate / self.chunk_size
+        )
+        min_speech_chunks = int(
+            config.VAD_MIN_SPEECH_DURATION * self.sample_rate / self.chunk_size
+        )
         pre_roll = collections.deque(maxlen=config.VAD_PRE_ROLL_CHUNKS)
 
         stream_kwargs = dict(
@@ -97,7 +101,12 @@ class VADRecorder:
                                 break
                             else:
                                 print("  (too short, ignoring)")
-                                frames, speech_chunks, silence_chunks, in_speech = [], 0, 0, False
+                                frames, speech_chunks, silence_chunks, in_speech = (
+                                    [],
+                                    0,
+                                    0,
+                                    False,
+                                )
                                 pre_roll.clear()
         finally:
             stream.stop_stream()

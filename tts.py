@@ -53,8 +53,10 @@ class TextToSpeech:
             process = subprocess.run(
                 [
                     self.piper_exe,
-                    "--model", self.model_path,
-                    "--output_file", output_path,
+                    "--model",
+                    self.model_path,
+                    "--output_file",
+                    output_path,
                 ],
                 input=text,
                 capture_output=True,
@@ -93,8 +95,9 @@ class TextToSpeech:
             List of paths to WAV files (one per sentence).
         """
         import re
+
         # Split on sentence boundaries
-        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
         sentences = [s for s in sentences if s.strip()]
 
         wav_files = []

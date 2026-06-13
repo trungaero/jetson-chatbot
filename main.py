@@ -97,7 +97,9 @@ def main():
 
             if kind == "reminder":
                 # Extract task name from the trigger string
-                task = text.replace("[REMINDER] Please remind the user about: ", "").strip()
+                task = text.replace(
+                    "[REMINDER] Please remind the user about: ", ""
+                ).strip()
                 print(f"\n   🔔 Reminder triggered: {task}")
                 tts_text = reminder_agent.announce(task)
                 if tts_text:
@@ -109,7 +111,7 @@ def main():
                 continue
 
             # Normal user input → full ReAct agent
-            print(f"   🗣 User: \"{text}\"")
+            print(f'   🗣 User: "{text}"')
             print("   ⏳ Agent thinking...")
             tts_text, full_text = agent.chat(text)
             if not tts_text:

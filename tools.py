@@ -12,7 +12,6 @@ import subprocess
 import reminder_scheduler
 from camera_tool import describe_image_with_local_llm, capture_image_b64
 
-
 # ── Internet Search ──────────────────────────────────────────────────────────
 
 _search = DuckDuckGoSearchRun()
@@ -38,6 +37,7 @@ def search_internet(query: str) -> str:
 
 
 # ── Reminders ─────────────────────────────────────────────────────
+
 
 @tool
 def set_reminder(task: str, when: str) -> str:
@@ -66,7 +66,9 @@ def set_reminder(task: str, when: str) -> str:
         return f"The time '{when}' appears to be in the past. Please specify a future time."
 
     reminder_id = reminder_scheduler.add_reminder(task, due)
-    print(f"   ✓ Reminder set! ID: {reminder_id}. Scheduled for {due.strftime('%A, %B %d at %H:%M')}.")
+    print(
+        f"   ✓ Reminder set! ID: {reminder_id}. Scheduled for {due.strftime('%A, %B %d at %H:%M')}."
+    )
     return (
         f"Reminder set! ID: {reminder_id}. "
         f"I will remind you about '{task}' at {due.strftime('%A, %B %d at %H:%M')}."
@@ -116,6 +118,7 @@ def cancel_reminder_tool(reminder_id: str) -> str:
 
 # ── System Control ────────────────────────────────────────────────────────────
 
+
 @tool
 def shutdown_device(delay_seconds: int = 0) -> str:
     """Shutdown the Jetson Orin device.
@@ -132,17 +135,18 @@ def shutdown_device(delay_seconds: int = 0) -> str:
         print(f"   🔴 Initiating device shutdown (delay: {delay_seconds}s)...")
         if delay_seconds > 0:
             subprocess.run(
-                ["sudo", "shutdown", "-h", f"+{delay_seconds // 60}", 
-                 f"Device shutting down in {delay_seconds} seconds."],
+                [
+                    "sudo",
+                    "shutdown",
+                    "-h",
+                    f"+{delay_seconds // 60}",
+                    f"Device shutting down in {delay_seconds} seconds.",
+                ],
                 check=True,
-                timeout=10
+                timeout=10,
             )
         else:
-            subprocess.run(
-                ["sudo", "shutdown", "-h", "now"],
-                check=True,
-                timeout=10
-            )
+            subprocess.run(["sudo", "shutdown", "-h", "now"], check=True, timeout=10)
         return "Device shutdown command sent successfully. The Jetson Orin is shutting down."
     except subprocess.CalledProcessError as e:
         return f"Shutdown command failed: {e}. Make sure the application has sudo privileges."
@@ -151,6 +155,7 @@ def shutdown_device(delay_seconds: int = 0) -> str:
 
 
 # ── Camera Vision ────────────────────────────────────────────────────────────
+
 
 @tool
 def look_around_with_camera() -> str:
@@ -174,7 +179,10 @@ def look_around_with_camera() -> str:
             return description
     except Exception as e:
         return f"Error during camera capture or analysis: {e}"
+
+
 # ── Tool Registry ────────────────────────────────────────────────────────────
+
 
 def get_tools() -> list:
     """Return all available tools for the agent."""

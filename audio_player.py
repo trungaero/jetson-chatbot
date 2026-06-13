@@ -43,6 +43,7 @@ class AudioPlayer:
     def _play_aplay(self, wav_path: str):
         """Play using aplay (ALSA, Linux) on configured device."""
         import config
+
         try:
             subprocess.run(
                 ["aplay", "-D", config.AUDIO_ALSA_DEVICE, "-q", wav_path],

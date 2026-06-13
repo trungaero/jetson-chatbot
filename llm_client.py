@@ -88,7 +88,7 @@ class LLMClient:
             self.history.append({"role": "assistant", "content": assistant_text})
             self._trim_history()
 
-            print(f"   🤖 Response: \"{assistant_text}\"")
+            print(f'   🤖 Response: "{assistant_text}"')
             return assistant_text
 
         except requests.Timeout:

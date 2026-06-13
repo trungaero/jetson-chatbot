@@ -22,7 +22,6 @@ from langgraph.checkpoint.memory import InMemorySaver
 import config
 from tools import get_tools
 
-
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 REMINDER_SYSTEM_PROMPT = (
@@ -36,6 +35,7 @@ REMINDER_SYSTEM_PROMPT = (
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def strip_reasoning(text: str) -> str:
     """Remove <think>...</think> reasoning blocks from the model's response."""
     cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
@@ -43,19 +43,20 @@ def strip_reasoning(text: str) -> str:
     return cleaned.strip()
 
 
-
-
 # ── Chat Agent ────────────────────────────────────────────────────────────────
+
 
 class ChatAgent:
     """LangGraph ReAct agent wrapping llama.cpp server, with camera vision support."""
 
     def __init__(self):
-        print(f"Connecting to LLM at {config.LLAMA_SERVER_URL} (model: {config.LLAMA_MODEL})...")
+        print(
+            f"Connecting to LLM at {config.LLAMA_SERVER_URL} (model: {config.LLAMA_MODEL})..."
+        )
 
         self.llm = ChatOpenAI(
             base_url=f"{config.LLAMA_SERVER_URL}/v1",
-            api_key="not-needed",           # llama.cpp doesn't require auth
+            api_key="not-needed",  # llama.cpp doesn't require auth
             model=config.LLAMA_MODEL,
             max_tokens=config.LLAMA_MAX_TOKENS,
             temperature=config.LLAMA_TEMPERATURE,
@@ -97,7 +98,7 @@ class ChatAgent:
 
         # Append new message and keep only the last 10
         self.history.append(HumanMessage(content=user_text))
-        self.history = self.history[-config.MAX_CONVERSATION_HISTORY:]
+        self.history = self.history[-config.MAX_CONVERSATION_HISTORY :]
 
         # Run the agent
         print("   ⚙ Agent running...")
@@ -112,10 +113,9 @@ class ChatAgent:
             return "I encountered an error. Please try again.", err
         # ── Extract final response ────────────────────────────────────────────
         messages_out = result.get("messages", [])
-        
+
         ai_messages = [
-            m for m in messages_out
-            if isinstance(m, AIMessage) and m.content
+            m for m in messages_out if isinstance(m, AIMessage) and m.content
         ]
         full_text = ai_messages[-1].content.strip() if ai_messages else ""
 
@@ -129,15 +129,16 @@ class ChatAgent:
         thinking_match = re.search(r"<think>(.*?)</think>", full_text, re.DOTALL)
         if thinking_match:
             thinking = thinking_match.group(1).strip()
-            print(f"   💭 Reasoning: {thinking[:200]}{'...' if len(thinking) > 200 else ''}")
+            print(
+                f"   💭 Reasoning: {thinking[:200]}{'...' if len(thinking) > 200 else ''}"
+            )
 
-        print(f"   🤖 Response: \"{tts_text}\"")
+        print(f'   🤖 Response: "{tts_text}"')
 
         # Persist AI response in history for future turns
         self.history.append(AIMessage(content=full_text))
 
         return tts_text, full_text
-
 
     def reset_history(self):
         """Clear conversation history."""
@@ -146,6 +147,7 @@ class ChatAgent:
 
 
 # ── Reminder Agent ────────────────────────────────────────────────────────────
+
 
 class ReminderAgent:
     """
@@ -168,12 +170,12 @@ class ReminderAgent:
         """Generate a spoken reminder announcement for the given task."""
         messages = [
             {"role": "system", "content": REMINDER_SYSTEM_PROMPT},
-            {"role": "user",   "content": f"Remind the user about: {task}"},
+            {"role": "user", "content": f"Remind the user about: {task}"},
         ]
         try:
             response = self._llm.invoke(messages)
             text = strip_reasoning(response.content.strip())
-            print(f"   🔔 Reminder announcement: \"{text}\"")
+            print(f'   🔔 Reminder announcement: "{text}"')
             return text
         except Exception as e:
             print(f"   ✗ ReminderAgent error: {e}")

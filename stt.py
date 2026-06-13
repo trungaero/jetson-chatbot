@@ -13,9 +13,11 @@ class SpeechToText:
     """Wraps faster-whisper for real-time transcription."""
 
     def __init__(self):
-        print(f"Loading Whisper model '{config.WHISPER_MODEL_SIZE}' "
-              f"on {config.WHISPER_DEVICE} ({config.WHISPER_COMPUTE_TYPE})...")
-        
+        print(
+            f"Loading Whisper model '{config.WHISPER_MODEL_SIZE}' "
+            f"on {config.WHISPER_DEVICE} ({config.WHISPER_COMPUTE_TYPE})..."
+        )
+
         self.model = WhisperModel(
             config.WHISPER_MODEL_SIZE,
             device=config.WHISPER_DEVICE,
@@ -40,7 +42,7 @@ class SpeechToText:
             audio,
             beam_size=config.WHISPER_BEAM_SIZE,
             language=config.WHISPER_LANGUAGE,
-            vad_filter=True,          # Filter out silence
+            vad_filter=True,  # Filter out silence
             vad_parameters=dict(
                 min_silence_duration_ms=500,
             ),
@@ -54,8 +56,10 @@ class SpeechToText:
         full_text = " ".join(text_parts).strip()
 
         if full_text:
-            print(f"   📝 Transcribed: \"{full_text}\"")
-            print(f"      (language: {info.language}, probability: {info.language_probability:.2f})")
+            print(f'   📝 Transcribed: "{full_text}"')
+            print(
+                f"      (language: {info.language}, probability: {info.language_probability:.2f})"
+            )
 
         return full_text
 

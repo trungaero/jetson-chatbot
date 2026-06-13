@@ -9,7 +9,9 @@ for i in range(p.get_device_count()):
         print(f"  [{i}] {info['name']}")
 
 # Record 5 seconds
-stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=1024)
+stream = p.open(
+    format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=1024
+)
 print("Recording 5s...")
 frames = [stream.read(1024) for _ in range(int(16000 / 1024 * 5))]
 stream.stop_stream()

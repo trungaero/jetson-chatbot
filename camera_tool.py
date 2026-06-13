@@ -23,15 +23,16 @@ with warnings.catch_warnings():
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-CAPTURE_DIR  = "/tmp/agent_captures"
+CAPTURE_DIR = "/tmp/agent_captures"
 MAX_CAPTURES = 20
-CAPTURE_WIDTH  = 640
+CAPTURE_WIDTH = 640
 CAPTURE_HEIGHT = 480
-WARMUP_FRAMES  = 4          # discard frames so auto-exposure settles
+WARMUP_FRAMES = 4  # discard frames so auto-exposure settles
 
-_CAMERA_PATH: str | None = None   # cached after first successful detection
+_CAMERA_PATH: str | None = None  # cached after first successful detection
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
 
 def _detect_camera() -> str | None:
     """Return the path of the first /dev/video* that can stream frames."""
@@ -40,7 +41,8 @@ def _detect_camera() -> str | None:
             with Device(path) as cam:
                 cam.set_format(
                     BufferType.VIDEO_CAPTURE,
-                    CAPTURE_WIDTH, CAPTURE_HEIGHT,
+                    CAPTURE_WIDTH,
+                    CAPTURE_HEIGHT,
                     "MJPG",
                 )
                 # try to pull one frame to confirm it really works
@@ -57,8 +59,8 @@ def _detect_camera() -> str | None:
 def _evict_old_captures() -> None:
     """Delete oldest captures when the rolling buffer is full."""
     files = sorted(glob.glob(os.path.join(CAPTURE_DIR, "capture_*.jpg")))
-    excess = len(files) - MAX_CAPTURES + 1   # +1 makes room for the new one
-    for path in files[:max(0, excess)]:
+    excess = len(files) - MAX_CAPTURES + 1  # +1 makes room for the new one
+    for path in files[: max(0, excess)]:
         try:
             os.remove(path)
         except OSError:
@@ -80,16 +82,15 @@ def _frame_to_pil(frame) -> Image.Image:
 
     if pf == PixelFormat.YUYV:
         import numpy as np
-        arr = np.frombuffer(raw, dtype=np.uint8).reshape(
-            frame.height, frame.width, 2
-        )
+
+        arr = np.frombuffer(raw, dtype=np.uint8).reshape(frame.height, frame.width, 2)
         # YUYV → RGB via YCbCr
-        y  = arr[:, :, 0].astype(np.float32)
+        y = arr[:, :, 0].astype(np.float32)
         cb = arr[:, :, 1].astype(np.float32) - 128
         cr = arr[:, :, 1].astype(np.float32) - 128  # alternating; approximate
-        r = np.clip(y + 1.402  * cr, 0, 255).astype(np.uint8)
-        g = np.clip(y - 0.344  * cb - 0.714 * cr, 0, 255).astype(np.uint8)
-        b = np.clip(y + 1.772  * cb, 0, 255).astype(np.uint8)
+        r = np.clip(y + 1.402 * cr, 0, 255).astype(np.uint8)
+        g = np.clip(y - 0.344 * cb - 0.714 * cr, 0, 255).astype(np.uint8)
+        b = np.clip(y + 1.772 * cb, 0, 255).astype(np.uint8)
         rgb = np.stack([r, g, b], axis=2)
         return Image.fromarray(rgb, "RGB")
 
@@ -101,6 +102,7 @@ def _frame_to_pil(frame) -> Image.Image:
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 def capture_image_to_disk() -> str:
     """
@@ -126,7 +128,8 @@ def capture_image_to_disk() -> str:
             with Device(_CAMERA_PATH) as cam:
                 cam.set_format(
                     BufferType.VIDEO_CAPTURE,
-                    CAPTURE_WIDTH, CAPTURE_HEIGHT,
+                    CAPTURE_WIDTH,
+                    CAPTURE_HEIGHT,
                     "MJPG",
                 )
                 frame = None
@@ -144,11 +147,13 @@ def capture_image_to_disk() -> str:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = os.path.join(CAPTURE_DIR, f"capture_{timestamp}.jpg")
         image.save(path, "JPEG", quality=85)
-        print(f"   📷 Image saved: {path}  ({frame.width}x{frame.height} {frame.pixel_format.name})")
+        print(
+            f"   📷 Image saved: {path}  ({frame.width}x{frame.height} {frame.pixel_format.name})"
+        )
         return path
 
     except Exception as e:
-        _CAMERA_PATH = None   # force re-detection next call
+        _CAMERA_PATH = None  # force re-detection next call
         raise RuntimeError(f"Camera capture failed: {e}") from e
 
 
@@ -170,6 +175,7 @@ def capture_image_b64() -> dict:
         path = capture_image_to_disk()
         b64 = image_to_base64(path)
         from datetime import datetime as _dt
+
         return {
             "image_path": path,
             "base64_jpeg": b64,
@@ -203,7 +209,7 @@ def describe_image_with_local_llm(base64_jpeg: str, user_question: str = "") -> 
     data_uri = f"data:image/jpeg;base64,{base64_jpeg}"
 
     prompt_text = (
-        f"The user asked: \"{user_question}\"\nDescribe what you see in this image."
+        f'The user asked: "{user_question}"\nDescribe what you see in this image.'
         if user_question
         else "Describe what you see in this image."
     )

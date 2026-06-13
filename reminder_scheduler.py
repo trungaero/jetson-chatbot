@@ -17,12 +17,12 @@ import uuid
 import os
 from datetime import datetime
 
-
 REMINDERS_FILE = os.path.join(os.path.dirname(__file__), "reminders.json")
 POLL_INTERVAL = 20  # seconds between checks
 
 
 # ── Persistence helpers ───────────────────────────────────────────────────────
+
 
 def _load_reminders() -> list[dict]:
     """Load reminders from disk."""
@@ -43,16 +43,19 @@ def _save_reminders(reminders: list[dict]):
 
 # ── Public API (called from tools.py) ────────────────────────────────────────
 
+
 def add_reminder(task: str, due: datetime) -> str:
     """Add a new reminder. Returns the reminder ID."""
     reminders = _load_reminders()
     reminder_id = str(uuid.uuid4())[:8]
-    reminders.append({
-        "id": reminder_id,
-        "task": task,
-        "due": due.isoformat(),
-        "fired": False,
-    })
+    reminders.append(
+        {
+            "id": reminder_id,
+            "task": task,
+            "due": due.isoformat(),
+            "fired": False,
+        }
+    )
     _save_reminders(reminders)
     return reminder_id
 
@@ -74,6 +77,7 @@ def cancel_reminder(reminder_id: str) -> bool:
 
 
 # ── Background scheduler ──────────────────────────────────────────────────────
+
 
 class ReminderScheduler:
     """Background thread that checks reminders and fires them when due."""
