@@ -75,7 +75,7 @@ class ChatAgent:
             model=self.llm,
             tools=self.tools,
             system_prompt=config.LLAMA_SYSTEM_PROMPT,
-            checkpointer=self.checkpointer,
+            # checkpointer=self.checkpointer,
         )
 
     # ── Public API ────────────────────────────────────────────────────────────
