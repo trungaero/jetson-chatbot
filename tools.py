@@ -158,11 +158,14 @@ def shutdown_device(delay_seconds: int = 0) -> str:
 
 
 @tool
-def look_around_with_camera() -> str:
+def look_around_with_camera(user_question: str) -> str:
     """Capture what the camera currently sees and return it for visual analysis.
     Use this tool whenever the user asks what you see, what is in front of you,
     what is happening around you, to describe the environment, or any similar
     request that requires vision or visual observation.
+
+    Args:
+        user_question: The user's request or question about the environment.
 
     Returns:
         Description of the current camera view, or an error message if capture/analysis fails.
@@ -175,7 +178,7 @@ def look_around_with_camera() -> str:
             return f"Failed to capture image: {error_msg}"
         else:
             print("   ⏳ Analyzing image with local LLM...")
-            description = describe_image_with_local_llm(base64_jpeg)
+            description = describe_image_with_local_llm(base64_jpeg, user_question)
             return description
     except Exception as e:
         return f"Error during camera capture or analysis: {e}"
