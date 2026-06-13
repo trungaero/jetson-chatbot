@@ -12,3 +12,4 @@ langchain
 torch
 torchaudio
 silero-vad
+opencv-python

@@ -10,6 +10,7 @@ import dateparser
 import subprocess
 
 import reminder_scheduler
+import camera_tool
 
 
 # ── Internet Search ──────────────────────────────────────────────────────────
@@ -149,6 +150,39 @@ def shutdown_device(delay_seconds: int = 0) -> str:
         return f"Error initiating shutdown: {e}"
 
 
+# ── Camera Vision ────────────────────────────────────────────────────────────
+
+@tool
+def look_around_with_camera() -> dict:
+    """Capture what the camera currently sees and return it for visual analysis.
+    Use this tool whenever the user asks what you see, what is in front of you,
+    what is happening around you, to describe the environment, or any similar
+    request that requires vision or visual observation.
+
+    Returns:
+        A dict with:
+          - "image_path": path to the saved JPEG on disk
+          - "base64_jpeg": base64-encoded JPEG string ready for a vision model
+          - "timestamp": ISO-format capture timestamp
+    """
+    try:
+        path = camera_tool.capture_image_to_disk()
+        b64 = camera_tool.image_to_base64(path)
+        from datetime import datetime as _dt
+        return {
+            "image_path": path,
+            "base64_jpeg": b64,
+            "timestamp": _dt.now().isoformat(timespec="seconds"),
+        }
+    except Exception as e:
+        return {
+            "image_path": None,
+            "base64_jpeg": None,
+            "timestamp": None,
+            "error": str(e),
+        }
+
+
 # ── Tool Registry ────────────────────────────────────────────────────────────
 
 def get_tools() -> list:
@@ -159,4 +193,5 @@ def get_tools() -> list:
         list_reminders_tool,
         cancel_reminder_tool,
         shutdown_device,
+        look_around_with_camera,
     ]
