@@ -178,6 +178,7 @@ def look_around_with_camera(user_question: str) -> str:
             return f"Failed to capture image: {error_msg}"
         else:
             print("   ⏳ Analyzing image with local LLM...")
+            print(f"   🖼 User question: {user_question}")
             description = describe_image_with_local_llm(base64_jpeg, user_question)
             return description
     except Exception as e:
