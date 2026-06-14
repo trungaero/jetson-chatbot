@@ -161,7 +161,7 @@ def shutdown_device(delay_seconds: int = 0) -> str:
 def look_around_with_camera(user_question: str) -> str:
     """Capture what the camera currently sees and return it for visual analysis.
     Use this tool whenever the user asks what you see, what is in front of you,
-    what is happening around you, to describe the environment, or any similar
+    what is happening around you, read something or look at something, or any other
     request that requires vision or visual observation.
 
     Args:
